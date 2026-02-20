@@ -21,26 +21,47 @@ saveBtn.onclick = () => {
 };
 
 testBtn.onclick = async () => {
-  const baseUrl = document.getElementById("baseUrl").value.trim() || "https://api.openai.com/v1/chat/completions";
+  const baseUrlInput = document.getElementById("baseUrl").value.trim();
   const apiKey = document.getElementById("apiKey").value.trim();
   const model = document.getElementById("model").value.trim();
 
-  if (!apiKey) return alert("Сначала введи API-ключ");
+  if (!apiKey) {
+    status.innerHTML = `<span style="color:red;">❌ Введи API-ключ</span>`;
+    return;
+  }
+
+  const base = baseUrlInput || "https://api.groq.com/openai/v1";
+  const url = base + "/chat/completions";
 
   status.innerHTML = "Тестируем...";
+
   try {
-    const res = await fetch(baseUrl, {
+    const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
       body: JSON.stringify({
-        model: model || "gpt-4o-mini",
-        messages: [{ role: "user", content: "Привет, ответь одним словом: тест" }]
+        model: model || "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: "Ответь одним словом: тест" }],
+        max_tokens: 5,
+        temperature: 0.1
       })
     });
+
     const data = await res.json();
-    if (data.choices) status.innerHTML = `<span style="color:green;">✅ Работает! Ответ: ${data.choices[0].message.content}</span>`;
-    else throw new Error();
+
+    if (res.ok && data.choices && data.choices[0]?.message?.content) {
+      const answer = data.choices[0].message.content.trim();
+      status.innerHTML = `<span style="color:green;">✅ Работает! Ответ: ${answer}</span>`;
+    } else if (res.ok) {
+      // 200, но структура не та (Groq иногда возвращает чуть иначе)
+      status.innerHTML = `<span style="color:orange;">⚠️ Запрос прошёл (200 OK), но ответ странный: ${JSON.stringify(data)}</span>`;
+    } else {
+      status.innerHTML = `<span style="color:red;">❌ Ошибка ${res.status}: ${data.error?.message || res.statusText}</span>`;
+    }
   } catch (e) {
-    status.innerHTML = `<span style="color:red;">❌ Ошибка: ${e.message || "проверь ключ и URL"}</span>`;
+    status.innerHTML = `<span style="color:red;">❌ Сетевая ошибка: ${e.message}</span>`;
   }
 };
