@@ -23,6 +23,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+chrome.commands.onCommand.addListener((command) => {
+  if (command === "open-ai-helper") {
+    // Получаем активную вкладку и отправляем сообщение content script'у
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "openAIHelper", selectedText: "" });
+      }
+    });
+  }
+});
+
 async function handleAIRequest(request, sendResponse) {
   try {
     const { apiKey, baseUrl, model } = await chrome.storage.sync.get(['apiKey', 'baseUrl', 'model']);
