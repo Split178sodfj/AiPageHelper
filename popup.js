@@ -2,13 +2,25 @@
 const saveBtn = document.getElementById("saveBtn");
 const testBtn = document.getElementById("testBtn");
 const status = document.getElementById("status");
+const openShortcutsBtn = document.getElementById("openShortcutsBtn");  // ← добавляем здесь
 
+// Загружаем сохранённые значения при открытии popup
 chrome.storage.sync.get(['baseUrl', 'apiKey', 'model'], (data) => {
   document.getElementById("baseUrl").value = data.baseUrl || "";
   document.getElementById("apiKey").value = data.apiKey || "";
   document.getElementById("model").value = data.model || "llama-3.3-70b-versatile";
 });
 
+// Обработчик кнопки «Настроить свою клавишу» — вешаем сразу, один раз
+if (openShortcutsBtn) {
+  openShortcutsBtn.onclick = () => {
+    chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+  };
+} else {
+  console.warn("Кнопка openShortcutsBtn не найдена в popup.html");
+}
+
+// Сохранение настроек
 saveBtn.onclick = () => {
   const baseUrl = document.getElementById("baseUrl").value.trim();
   const apiKey = document.getElementById("apiKey").value.trim();
@@ -20,6 +32,7 @@ saveBtn.onclick = () => {
   });
 };
 
+// Тестирование API (оставляем как было)
 testBtn.onclick = async () => {
   const baseUrlInput = document.getElementById("baseUrl").value.trim();
   const apiKey = document.getElementById("apiKey").value.trim();
@@ -56,7 +69,6 @@ testBtn.onclick = async () => {
       const answer = data.choices[0].message.content.trim();
       status.innerHTML = `<span style="color:green;">✅ Работает! Ответ: ${answer}</span>`;
     } else if (res.ok) {
-      // 200, но структура не та (Groq иногда возвращает чуть иначе)
       status.innerHTML = `<span style="color:orange;">⚠️ Запрос прошёл (200 OK), но ответ странный: ${JSON.stringify(data)}</span>`;
     } else {
       status.innerHTML = `<span style="color:red;">❌ Ошибка ${res.status}: ${data.error?.message || res.statusText}</span>`;

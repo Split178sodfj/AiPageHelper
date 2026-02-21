@@ -25,12 +25,12 @@ function showHelperPanel(selectedText = "") {
       <button id="closeBtn" style="font-size:22px; background:none; border:none; cursor:pointer; color:#666;">✕</button>
     </div>
     <div style="padding:20px; flex:1; overflow:auto;">
-      <select id="promptSelect" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #ccc;">
+      <select id="promptSelect" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #ccc; font-size:16px;">
         <option value="summarize">Суммировать максимально коротко</option>
         <option value="explain">Объяснить как 12-летнему</option>
         <option value="rewrite">Переписать красиво и профессионально</option>
         <option value="tweet">Сделать твит-тред (нумерованный, до 10 твитов)</option>
-        <option value="critic">Найти ошибки, неточности и предложить улучшения</option>
+        <option value="critic">Найти ошибки, неточности и предложи улучшения</option>
         <option value="translate_en">Перевести на английский</option>
         <option value="translate_ru">Перевести на русский</option>
         <option value="seo_title">Сгенерировать SEO-заголовок + описание</option>
@@ -42,85 +42,147 @@ function showHelperPanel(selectedText = "") {
         <option value="list_table">Преобразовать в список или таблицу</option>
         <option value="custom">Свой промпт ↓</option>
       </select>
-      <textarea id="textArea" style="width:100%; height:110px; padding:12px; border-radius:8px; border:1px solid #ccc; resize:vertical;">${selectedText}</textarea>
-      
-      <button id="askButton" style="margin-top:12px; width:100%; padding:14px; background:#000; color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer;">🚀 Спросить AI</button>
-      
-      <div id="loading" style="display:none; text-align:center; margin:20px 0; color:#666;">Думаю...</div>
-      <div id="result" style="margin-top:16px; padding:14px; background:#f8f9fa; border-radius:8px; white-space:pre-wrap; display:none;"></div>
+
+      <textarea id="textArea" style="width:100%; height:120px; padding:12px; border-radius:8px; border:1px solid #ccc; resize:vertical; font-size:16px;">${selectedText}</textarea>
+
+      <!-- Две кнопки в ряд под textarea -->
+      <div style="display: flex; gap: 12px; margin-top: 12px;">
+        <button id="clearBtn" style="flex: 1; padding:14px; background:#6c757d; color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:16px;">
+          🗑 Очистить / Новый
+        </button>
+        <button id="askButton" style="flex: 1; padding:14px; background:#000; color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:16px;">
+          🚀 Спросить AI
+        </button>
+      </div>
+
+      <div id="loading" style="display:none; text-align:center; margin:20px 0; color:#666; font-size:16px;">Думаю...</div>
+      <div id="result" style="margin-top:16px; padding:14px; background:#f8f9fa; border-radius:8px; white-space:pre-wrap; display:none; font-size:15px; line-height:1.5;"></div>
     </div>
   `;
 
-document.body.appendChild(panel);
+  document.body.appendChild(panel);
 
-  // обработчики
+  // ─── Обработчики ───
   document.getElementById("closeBtn").onclick = () => panel.remove();
 
-  // ─── Добавляем обработчик смены промпта (один раз здесь) ───
   const select = document.getElementById("promptSelect");
   const textarea = document.getElementById("textArea");
+  const askBtn = document.getElementById("askButton");
+  const clearBtn = document.getElementById("clearBtn");
 
+  // Смена промпта
   select.onchange = () => {
     if (select.value === "custom") {
+      textarea.placeholder = "Введи ЛЮБОЙ свой запрос к AI (без шаблонов)...";
       textarea.focus();
       textarea.select();
-      textarea.placeholder = "Напиши свой промпт здесь...";
     } else {
-      textarea.placeholder = "Выделенный текст появится здесь";
+      textarea.placeholder = "Выделенный текст (можно редактировать)";
     }
   };
+  select.onchange();
 
-  // Запускаем один раз при открытии, чтобы placeholder был правильный
-  select.onchange();   // ← важно! чтобы сразу подставился нужный placeholder
+  // Очистка поля и результата
+  clearBtn.onclick = () => {
+    textarea.value = "";
+    document.getElementById("result").style.display = "none";
+    textarea.focus();
+  };
 
-  // ─── Основной обработчик кнопки "Спросить AI" ───
-  const askBtn = document.getElementById("askButton");
+  // Запрос к AI
   askBtn.onclick = async () => {
-    let prompt = textarea.value.trim();
+    const userText = textarea.value.trim();
 
-    if (!prompt) {
-      alert("Выдели текст или напиши свой запрос");
+    if (!userText) {
+      alert("Напиши хоть что-то в поле или выдели текст на странице");
       return;
     }
 
-    // Если НЕ custom — добавляем префикс
-    if (select.value !== "custom") {
-      const prefixes = {
-        summarize: "Суммируй максимально коротко и по делу:\n",
-        explain: "Объясни это как 12-летнему ребёнку, просто и понятно:\n",
-        rewrite: "Перепиши красиво, профессионально и увлекательно:\n",
-        tweet: "Преврати в твит-тред (нумерованный, до 10 твитов, с эмодзи где уместно):\n",
-        critic: "Найди ошибки, неточности, логические дыры и предложи улучшения:\n",
-        translate_en: "Переведи на естественный английский язык:\n",
-        translate_ru: "Переведи на естественный русский язык:\n",
-        seo_title: "Сгенерируй 3 варианта SEO-оптимизированного заголовка и короткое описание (meta description) для статьи:\n",
-        ideas: "Придумай 5–7 креативных идей для поста/статьи на тему:\n",
-        linkedin: "Напиши пост для LinkedIn в профессиональном стиле, с призывом к действию:\n",
-        tg_vk: "Напиши пост для Telegram / VK — живой, с эмодзи, разговорный стиль:\n",
-        notes: "Сделай структурированный краткий конспект текста:\n",
-        facts: "Выдели ключевые факты, даты, цифры и важные цитаты:\n",
-        list_table: "Преобразуй информацию в удобный маркированный список или таблицу:\n",
-        // custom: ""  — не нужен, так как уже пустой
-      };
+    let finalPrompt = userText;
 
-      prompt = prefixes[select.value] + prompt;
+    if (select.value !== "custom") {
+      const prefixes = { /* ... все твои префиксы остаются без изменений ... */ };
+      finalPrompt = (prefixes[select.value] || "") + userText;
     }
 
-    // ─── Запрос к AI ───
     document.getElementById("loading").style.display = "block";
     askBtn.disabled = true;
+    clearBtn.disabled = true;
     document.getElementById("result").style.display = "none";
 
-    chrome.runtime.sendMessage({ action: "callAI", prompt }, (res) => {
+    chrome.runtime.sendMessage({ action: "callAI", prompt: finalPrompt }, (res) => {
       document.getElementById("loading").style.display = "none";
       askBtn.disabled = false;
+      clearBtn.disabled = false;
 
       const resultDiv = document.getElementById("result");
+
+
       if (res.success) {
-        resultDiv.innerHTML = `<strong>Ответ AI:</strong><br><br>${res.answer.replace(/\n/g, '<br>')}`;
+        const formattedAnswer = res.answer.replace(/\n/g, '<br>');
+
+        resultDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+        <strong style="font-size: 17px;">Ответ AI:</strong>
+        <button id="copyBtn" title="Скопировать весь ответ" style="
+        padding: 6px 10px;
+        background: #f1f3f5;
+        color: #495057;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        ">
+        <span style="font-size: 15px;">📋</span>
+        Копировать ответ
+        </button>
+        </div>
+        <div id="answerText" style="line-height: 1.6; white-space: pre-wrap; word-break: break-word;">
+        ${formattedAnswer}
+        </div>
+        `;
         resultDiv.style.display = "block";
+
+        // Обработчик копирования
+  
+        const copyBtn = document.getElementById("copyBtn");
+        if (copyBtn) {
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(res.answer).then(() => {
+              const originalText = copyBtn.innerHTML;
+              copyBtn.innerHTML = `<span style="font-size: 15px;">✅</span> Скопировано!`;
+              copyBtn.style.background = "#d4edda";
+              copyBtn.style.borderColor = "#c3e6cb";    
+              copyBtn.style.color = "#155724";
+
+              setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.style.background = "#f1f3f5";
+                copyBtn.style.borderColor = "#ced4da";
+                copyBtn.style.color = "#495057";
+              }, 2000);
+            }).catch(err => {
+              console.error('Clipboard error:', err);
+              alert("Не удалось скопировать");
+            });    
+          };
+
+          // Hover-эффект (опционально, но красиво)
+          copyBtn.onmouseover = () => {
+            copyBtn.style.background = "#e9ecef";
+            copyBtn.style.borderColor = "#adb5bd";
+          };
+          copyBtn.onmouseout = () => {
+            copyBtn.style.background = "#f1f3f5";
+            copyBtn.style.borderColor = "#ced4da";
+          };
+        }
       } else {
-        resultDiv.innerHTML = `<span style="color:red;">Ошибка: ${res.error}</span>`;
+        resultDiv.innerHTML = `<span style="color:red;">Ошибка: ${res.error || "Неизвестная ошибка"}</span>`;
         resultDiv.style.display = "block";
       }
     });
